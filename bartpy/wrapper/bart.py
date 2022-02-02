@@ -8,9 +8,8 @@
 
 import subprocess as sp
 import tempfile as tmp
-import cfl
+import bartpy.utils.cfl as cfl
 import os
-from wslsupport import PathCorrection
 
 def bart(nargout, cmd, *args):
 
@@ -51,6 +50,7 @@ def bart(nargout, cmd, *args):
 
     if os.name =='nt':
         if isWSL:
+            from wslsupport import PathCorrection
             #For WSL and modify paths
             cmdWSL = PathCorrection(cmd)
             in_strWSL = PathCorrection(in_str)

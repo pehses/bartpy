@@ -87,13 +87,12 @@ def bench(T=None, S=None, s=None):
     outputs = cfl.readcfl(NAME + 'output')
     return outputs
 
-def bin(label, src, l=None, o=None, R=None, C=None, r=None, c=None, a=None, A=None):
+def bin(label, src, l=None, o=None, R=None, C=None, r=None, c=None, a=None, A=None, O=None, x=None, M=None):
     """
     Binning
 
     :param label array:
     :param src array:
-    :param x OUTFILE:
     :param l int: Bin according to labels: Specify cluster dimension 
     :param o bool: Reorder according to labels 
     :param R int: Quadrature Binning: Number of respiratory labels 
@@ -102,9 +101,12 @@ def bin(label, src, l=None, o=None, R=None, C=None, r=None, c=None, a=None, A=No
     :param c VEC2: (Cardiac motion: Eigenvector index) 
     :param a int: Quadrature Binning: Moving average 
     :param A int: (Quadrature Binning: Cardiac moving average window) 
+    :param O FLOAT_VEC2: Quadrature Binning: Angle offset for resp and card. 
+    :param x STRING: (Output filtered cardiac EOFs) 
+    :param M bool: Amplitude binning 
 
     """
-    usage_string = "bin [-l d] [-o] [-R d] [-C d] [-a d] label src dst"
+    usage_string = "bin [-l d] [-o] [-R d] [-C d] [-a d] [-O f:f] [-M] label src dst"
 
     cmd_str = f'{BART_PATH} '
     cmd_str += 'bin '
@@ -137,9 +139,18 @@ def bin(label, src, l=None, o=None, R=None, C=None, r=None, c=None, a=None, A=No
 
     if A is not None:
         flag_str += f'-A {A} '
+
+    if O is not None:
+        flag_str += f'-O {O} '
+
+    if x is not None:
+        flag_str += f'-x {x} '
+
+    if M is not None:
+        flag_str += f'-M '
     cmd_str += flag_str + opt_args + '  '
 
-    cmd_str += f"{' '.join([' '.join([str(x) for x in arg]) for arg in zip(*multituples)]).strip()} {NAME}label {NAME}src {NAME}dst {NAME}x  "
+    cmd_str += f"{' '.join([' '.join([str(x) for x in arg]) for arg in zip(*multituples)]).strip()} {NAME}label {NAME}src {NAME}dst  "
     cfl.writecfl(NAME + 'label', label)
     cfl.writecfl(NAME + 'src', src)
 
@@ -1452,16 +1463,18 @@ def fftshift(input, bitmask, b=None):
     outputs = cfl.readcfl(NAME + 'output')
     return outputs
 
-def filter(input, m=None, l=None):
+def filter(input, m=None, l=None, G=None, a=None):
     """
     Apply filter.
 
     :param input array:
     :param m int: median filter along dimension dim 
     :param l int: length of filter 
+    :param G bool: geometric median 
+    :param a int: Moving average filter along dimension dim 
 
     """
-    usage_string = "filter [-m d] [-l d] input output"
+    usage_string = "filter [-m d] [-l d] [-G] [-a d] input output"
 
     cmd_str = f'{BART_PATH} '
     cmd_str += 'filter '
@@ -1476,6 +1489,12 @@ def filter(input, m=None, l=None):
 
     if l is not None:
         flag_str += f'-l {l} '
+
+    if G is not None:
+        flag_str += f'-G '
+
+    if a is not None:
+        flag_str += f'-a {a} '
     cmd_str += flag_str + opt_args + '  '
 
     cmd_str += f"{' '.join([' '.join([str(x) for x in arg]) for arg in zip(*multituples)]).strip()} {NAME}input {NAME}output  "
@@ -2001,7 +2020,7 @@ def mip(input, bitmask, m=None, a=None):
     outputs = cfl.readcfl(NAME + 'output')
     return outputs
 
-def moba(kspace, TI_TE, r=None, L=None, F=None, G=None, m=None, l=None, i=None, R=None, T=None, j=None, u=None, C=None, s=None, B=None, b=None, d=None, N=None, f=None, p=None, J=None, M=None, O=None, g=None, I=None, t=None, o=None, k=None, kfilter_1=None, kfilter_2=None, n=None, no_alpha_min_exp_decay=None, sobolev_a=None, sobolev_b=None, fat_spec_0=None):
+def moba(kspace, TI_TE, r=None, L=None, F=None, G=None, m=None, l=None, i=None, R=None, T=None, j=None, u=None, C=None, s=None, B=None, b=None, d=None, N=None, f=None, p=None, J=None, M=None, O=None, g=None, I=None, t=None, o=None, img_dims=None, k=None, kfilter_1=None, kfilter_2=None, n=None, no_alpha_min_exp_decay=None, sobolev_a=None, sobolev_b=None, fat_spec_0=None):
     """
     Model-based nonlinear inverse reconstruction
 
@@ -2032,7 +2051,8 @@ def moba(kspace, TI_TE, r=None, L=None, F=None, G=None, m=None, l=None, i=None, 
     :param g bool: use gpu 
     :param I array: File for initialization 
     :param t array:  
-    :param o float: Oversampling factor for gridding [default: 1.25] 
+    :param o float: Oversampling factor for gridding [default: 1.] 
+    :param img_dims list: dimensions 
     :param k bool: k-space edge filter for non-Cartesian trajectories 
     :param kfilter_1 bool: k-space edge filter 1 
     :param kfilter_2 bool: k-space edge filter 2 
@@ -2043,7 +2063,7 @@ def moba(kspace, TI_TE, r=None, L=None, F=None, G=None, m=None, l=None, i=None, 
     :param fat_spec_0 bool: select fat spectrum from ISMRM fat-water tool 
 
     """
-    usage_string = "moba [-r ...] [-L] [-F] [-G] [-m d] [-l d] [-i d] [-R f] [-T f] [-j f] [-u f] [-C d] [-s f] [-B f] [-b f:f] [-d d] [-f f] [-p file] [-J] [-M] [-g] [-I file] [-t file] [-o f] [-k] [--kfilter-1] [--kfilter-2] [-n] [--fat_spec_0] kspace TI/TE output [sensitivities]"
+    usage_string = "moba [-r ...] [-L] [-F] [-G] [-m d] [-l d] [-i d] [-R f] [-T f] [-j f] [-u f] [-C d] [-s f] [-B f] [-b f:f] [-d d] [-f f] [-p file] [-J] [-M] [-g] [-I file] [-t file] [-o f] [--img_dims d:d:d] [-k] [--kfilter-1] [--kfilter-2] [-n] [--fat_spec_0] kspace TI/TE output [sensitivities]"
 
     cmd_str = f'{BART_PATH} '
     cmd_str += 'moba '
@@ -2134,6 +2154,9 @@ def moba(kspace, TI_TE, r=None, L=None, F=None, G=None, m=None, l=None, i=None, 
     if o is not None:
         flag_str += f'-o {o} '
 
+    if img_dims is not None:
+        flag_str += f'--img_dims {":".join([str(x) for x in img_dims])} '
+
     if k is not None:
         flag_str += f'-k '
 
@@ -2223,6 +2246,38 @@ def mobafit(TE, echo_images, G=None, m=None, i=None, p=None, g=None):
 
     outputs = cfl.readcfl(NAME + 'paramters')
     return outputs
+
+def multicfl(cfl, s=None):
+    """
+    Combine/Split multiple cfl files to one multi-cfl file.
+In normal usage, the last argument is the combined multi-cfl,
+with '-s', the first argument is the multi-cfl that is split up
+
+    :param cfl tuple:
+    :param s bool: separate 
+
+    """
+    usage_string = "multicfl [-s] cfl1 ... cflN"
+
+    cmd_str = f'{BART_PATH} '
+    cmd_str += 'multicfl '
+    flag_str = ''
+
+    opt_args = f''
+
+    multituples = []
+
+    if s is not None:
+        flag_str += f'-s '
+    cmd_str += flag_str + opt_args + '  '
+
+    cmd_str += f"{' '.join([' '.join([str(x) for x in arg]) for arg in zip(*multituples)]).strip()} {' '.join([str(arg) for arg in cfl])}  "
+
+    if DEBUG:
+        print(cmd_str)
+
+
+    os.system(cmd_str)
 
 def nlinv(kspace, i=None, R=None, M=None, d=None, c=None, N=None, m=None, U=None, f=None, p=None, t=None, I=None, g=None, S=None, s=None, a=None, b=None, P=None, n=None, w=None, lowmem=None):
     """
@@ -2342,6 +2397,96 @@ the sensitivities.
 
     outputs = cfl.readcfl(NAME + 'output'), cfl.readcfl(NAME + 'sensitivities')
     return outputs
+
+def nnet(input, weights, ref_output, apply=None, eval=None, train=None, gpu=None, batch_size=None, load=None, network=None, unet_segm=None, train_loss=None, valid_loss=None, valid_data=None, train_algo=None, adam=None, load_memory=None, export_graph=None):
+    """
+    Trains or applies a neural network.
+
+    :param input array:
+    :param weights INOUTFILE:
+    :param ref_output INOUTFILE:
+    :param apply bool: apply nnet 
+    :param eval bool: evaluate nnet 
+    :param train bool: trains network 
+    :param gpu bool: run on gpu 
+    :param batch_size long: size of mini batches 
+    :param load array: load weights for continuing training 
+    :param network SUBOPT: select neural network 
+    :param unet_segm SUBOPT: configure U-Net for segmentation 
+    :param train_loss SUBOPT: configure the training loss 
+    :param valid_loss SUBOPT: configure the validation loss 
+    :param valid_data SUBOPT: provide validation data 
+    :param train_algo SUBOPT: configure general training parmeters 
+    :param adam SUBOPT: configure Adam 
+    :param load_memory bool: load files int memory 
+    :param export_graph STRING: export graph for visualization 
+
+    """
+    usage_string = "nnet [-a,--apply] [-e,--eval] [-t,--train] [-g,--gpu] [-b,--batch-size d] [-l,--load file] [-N,--network ...] [-U,--unet-segm ...] [--train-loss ...] [--valid-loss ...] [--valid-data ...] [-T,--train-algo ...] [--adam ...] [--load-memory] [--export-graph string] input weights ref/output"
+
+    cmd_str = f'{BART_PATH} '
+    cmd_str += 'nnet '
+    flag_str = ''
+
+    opt_args = f''
+
+    multituples = []
+
+    if apply is not None:
+        flag_str += f'--apply '
+
+    if eval is not None:
+        flag_str += f'--eval '
+
+    if train is not None:
+        flag_str += f'--train '
+
+    if gpu is not None:
+        flag_str += f'--gpu '
+
+    if batch_size is not None:
+        flag_str += f'--batch-size {batch_size} '
+
+    if not isinstance(load, type(None)):
+        cfl.writecfl(NAME + 'load', load)
+        flag_str += f'--load {NAME}load '
+
+    if network is not None:
+        flag_str += f'--network {network} '
+
+    if unet_segm is not None:
+        flag_str += f'--unet-segm {unet_segm} '
+
+    if train_loss is not None:
+        flag_str += f'--train-loss {train_loss} '
+
+    if valid_loss is not None:
+        flag_str += f'--valid-loss {valid_loss} '
+
+    if valid_data is not None:
+        flag_str += f'--valid-data {valid_data} '
+
+    if train_algo is not None:
+        flag_str += f'--train-algo {train_algo} '
+
+    if adam is not None:
+        flag_str += f'--adam {adam} '
+
+    if load_memory is not None:
+        flag_str += f'--load-memory '
+
+    if export_graph is not None:
+        flag_str += f'--export-graph {export_graph} '
+    cmd_str += flag_str + opt_args + '  '
+
+    cmd_str += f"{' '.join([' '.join([str(x) for x in arg]) for arg in zip(*multituples)]).strip()} {NAME}input {weights} {ref_output}  "
+    cfl.writecfl(NAME + 'input', input)
+
+    if DEBUG:
+        print(cmd_str)
+
+
+    os.system(cmd_str)
 
 def noise(input, s=None, S=None, r=None, n=None):
     """
@@ -2550,6 +2695,45 @@ def nufft(traj, input, a=None, i=None, d=None, D=None, t=None, r=None, c=None, l
     outputs = cfl.readcfl(NAME + 'output')
     return outputs
 
+def onehotenc(input, r=None, i=None):
+    """
+    Transforms class labels to one-hot-encoded classes
+
+
+    :param input array:
+    :param r bool: get class label by maximum entry 
+    :param i int: select dimension 
+
+    """
+    usage_string = "onehotenc [-r] [-i d] input output"
+
+    cmd_str = f'{BART_PATH} '
+    cmd_str += 'onehotenc '
+    flag_str = ''
+
+    opt_args = f''
+
+    multituples = []
+
+    if r is not None:
+        flag_str += f'-r '
+
+    if i is not None:
+        flag_str += f'-i {i} '
+    cmd_str += flag_str + opt_args + '  '
+
+    cmd_str += f"{' '.join([' '.join([str(x) for x in arg]) for arg in zip(*multituples)]).strip()} {NAME}input {NAME}output  "
+    cfl.writecfl(NAME + 'input', input)
+
+    if DEBUG:
+        print(cmd_str)
+
+
+    os.system(cmd_str)
+
+    outputs = cfl.readcfl(NAME + 'output')
+    return outputs
+
 def ones(dims, dim):
     """
     Create an array filled with ones with {dims} dimensions of size {dim1} to {dimn}.
@@ -2710,6 +2894,7 @@ def phantom(s=None, S=None, k=None, t=None, c=None, a=None, m=None, G=None, T=No
 def pics(kspace, sensitivities, l=None, r=None, R=None, c=None, s=None, i=None, t=None, n=None, N=None, g=None, G=None, p=None, I=None, b=None, e=None, H=None, D=None, F=None, J=None, T=None, W=None, d=None, O=None, o=None, u=None, C=None, q=None, f=None, m=None, w=None, S=None, L=None, K=None, B=None, P=None, a=None, M=None, lowmem=None):
     """
     Parallel-imaging compressed-sensing reconstruction.
+
 
     :param kspace array:
     :param sensitivities array:
@@ -3101,6 +3286,186 @@ def poly(L, N, a_):
     outputs = cfl.readcfl(NAME + 'output')
     return outputs
 
+def reconet(kspace, sensitivities, weights, ref_out, train=None, eval=None, apply=None, gpu=None, load=None, batch_size=None, iterations=None, normalize=None, network=None, resnet_block=None, varnet_block=None, unet=None, data_consistency=None, initial_reco=None, shared_weights=None, no_shared_weights=None, llambda=None, llambda=None, rss_norm=None, trajectory=None, pattern=None, adjoint=None, psf=None, export=None, mask=None, valid_data=None, train_loss=None, valid_loss=None, train_algo=None, adam=None, iPALM=None, load_memory=None, lowmem=None, test=None, export_graph=None, B=None):
+    """
+    Trains or appplies a neural network for reconstruction.
+
+    :param kspace array:
+    :param sensitivities array:
+    :param weights INOUTFILE:
+    :param ref_out INOUTFILE:
+    :param train bool: train reconet 
+    :param eval bool: evaluate reconet 
+    :param apply bool: apply reconet 
+    :param gpu bool: run on gpu 
+    :param load array: load weights for continuing training 
+    :param batch_size long: size of mini batches 
+    :param iterations long: number of unrolled iterations 
+    :param normalize bool: normalize data with maximum magnitude of adjoint reconstruction 
+    :param network SUBOPT: select neural network 
+    :param resnet_block SUBOPT: configure residual block 
+    :param varnet_block SUBOPT: configure variational block 
+    :param unet SUBOPT: configure U-Net block 
+    :param data_consistency SUBOPT: configure data-consistency method 
+    :param initial_reco SUBOPT: configure initialization 
+    :param shared_weights bool: share weights across iterations 
+    :param no_shared_weights bool: share weights across iterations 
+    :param llambda bool: share lambda across iterations 
+    :param llambda bool: share lambda across iterations 
+    :param rss_norm bool: scale output image to rss normalization 
+    :param trajectory array: trajectory 
+    :param pattern array: sampling pattern / psf in kspace 
+    :param adjoint INOUTFILE: (validation data adjoint (load or export)) 
+    :param psf INOUTFILE: (psf (load or export)) 
+    :param export bool: (export psf and adjoint reconstruction) 
+    :param mask array: mask for computation of loss 
+    :param valid_data SUBOPT: provide validation data 
+    :param train_loss SUBOPT: configure the training loss 
+    :param valid_loss SUBOPT: configure the validation loss 
+    :param train_algo SUBOPT: configure general training parmeters 
+    :param adam SUBOPT: configure Adam 
+    :param iPALM SUBOPT: configure iPALM 
+    :param load_memory bool: copy training data into memory 
+    :param lowmem bool: reduce memory usage by checkpointing 
+    :param test bool: very small network for tests 
+    :param export_graph STRING: export graph for visualization 
+    :param B array: (temporal (or other) basis) 
+
+    """
+    usage_string = "reconet [-t,--train] [-e,--eval] [-a,--apply] [-g,--gpu] [-l,--load file] [-b,--batch-size d] [-I,--iterations d] [-n,--normalize] [-N,--network ...] [--resnet-block ...] [--varnet-block ...] [--unet ...] [--data-consistency ...] [--initial-reco ...] [--shared-weights] [--no-shared-weights] [--shared-lambda] [--no-shared-lambda] [--rss-norm] [--trajectory file] [--pattern file] [--mask file] [--valid-data ...] [--train-loss ...] [--valid-loss ...] [-T,--train-algo ...] [--adam ...] [--iPALM ...] [--load-memory] [--lowmem] [--test] [--export-graph string] kspace sensitivities weights ref/out"
+
+    cmd_str = f'{BART_PATH} '
+    cmd_str += 'reconet '
+    flag_str = ''
+
+    opt_args = f''
+
+    multituples = []
+
+    if train is not None:
+        flag_str += f'--train '
+
+    if eval is not None:
+        flag_str += f'--eval '
+
+    if apply is not None:
+        flag_str += f'--apply '
+
+    if gpu is not None:
+        flag_str += f'--gpu '
+
+    if not isinstance(load, type(None)):
+        cfl.writecfl(NAME + 'load', load)
+        flag_str += f'--load {NAME}load '
+
+    if batch_size is not None:
+        flag_str += f'--batch-size {batch_size} '
+
+    if iterations is not None:
+        flag_str += f'--iterations {iterations} '
+
+    if normalize is not None:
+        flag_str += f'--normalize '
+
+    if network is not None:
+        flag_str += f'--network {network} '
+
+    if resnet_block is not None:
+        flag_str += f'--resnet-block {resnet_block} '
+
+    if varnet_block is not None:
+        flag_str += f'--varnet-block {varnet_block} '
+
+    if unet is not None:
+        flag_str += f'--unet {unet} '
+
+    if data_consistency is not None:
+        flag_str += f'--data-consistency {data_consistency} '
+
+    if initial_reco is not None:
+        flag_str += f'--initial-reco {initial_reco} '
+
+    if shared_weights is not None:
+        flag_str += f'--shared-weights '
+
+    if no_shared_weights is not None:
+        flag_str += f'--no-shared-weights '
+
+    if llambda is not None:
+        flag_str += f'--shared-lambda '
+
+    if llambda is not None:
+        flag_str += f'--no-shared-lambda '
+
+    if rss_norm is not None:
+        flag_str += f'--rss-norm '
+
+    if not isinstance(trajectory, type(None)):
+        cfl.writecfl(NAME + 'trajectory', trajectory)
+        flag_str += f'--trajectory {NAME}trajectory '
+
+    if not isinstance(pattern, type(None)):
+        cfl.writecfl(NAME + 'pattern', pattern)
+        flag_str += f'--pattern {NAME}pattern '
+
+    if adjoint is not None:
+        flag_str += f'--adjoint {adjoint} '
+
+    if psf is not None:
+        flag_str += f'--psf {psf} '
+
+    if export is not None:
+        flag_str += f'--export '
+
+    if not isinstance(mask, type(None)):
+        cfl.writecfl(NAME + 'mask', mask)
+        flag_str += f'--mask {NAME}mask '
+
+    if valid_data is not None:
+        flag_str += f'--valid-data {valid_data} '
+
+    if train_loss is not None:
+        flag_str += f'--train-loss {train_loss} '
+
+    if valid_loss is not None:
+        flag_str += f'--valid-loss {valid_loss} '
+
+    if train_algo is not None:
+        flag_str += f'--train-algo {train_algo} '
+
+    if adam is not None:
+        flag_str += f'--adam {adam} '
+
+    if iPALM is not None:
+        flag_str += f'--iPALM {iPALM} '
+
+    if load_memory is not None:
+        flag_str += f'--load-memory '
+
+    if lowmem is not None:
+        flag_str += f'--lowmem '
+
+    if test is not None:
+        flag_str += f'--test '
+
+    if export_graph is not None:
+        flag_str += f'--export-graph {export_graph} '
+
+    if not isinstance(B, type(None)):
+        cfl.writecfl(NAME + 'B', B)
+        flag_str += f'-B {NAME}B '
+    cmd_str += flag_str + opt_args + '  '
+
+    cmd_str += f"{' '.join([' '.join([str(x) for x in arg]) for arg in zip(*multituples)]).strip()} {NAME}kspace {NAME}sensitivities {weights} {ref_out}  "
+    cfl.writecfl(NAME + 'kspace', kspace)
+    cfl.writecfl(NAME + 'sensitivities', sensitivities)
+
+    if DEBUG:
+        print(cmd_str)
+
+
+    os.system(cmd_str)
+
 def repmat(input, dimension, repetitions):
     """
     Repeat input array multiple times along a certain dimension.
@@ -3167,7 +3532,7 @@ def reshape(input, flags, dim):
 
 def resize(input, dim, size, c=None):
     """
-    Resizes an array along dimensions to sizes by truncating or zero-padding.
+    Resizes an array along dimensions to sizes by truncating or zero-padding. Please see doc/resize.txt for examples.
 
     :param dim multituple:
     :param size multituple:
